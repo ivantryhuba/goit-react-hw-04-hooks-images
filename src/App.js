@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer, toast } from 'react-toastify';
 
@@ -12,55 +12,35 @@ import { Modal } from './Components/Modal/Modal';
 
 import { Container } from './App.styles';
 
-class App extends React.Component {
-    state = {
-        page: 1,
-        images: [],
-        searchQuery: '',
-        showModal: false,
-        largeImage: '',
-        isLoading: false,
-        error: null,
+const App = () => {
+    const [page, setPage] = useState(1);
+    const [images, setImages] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showModal, setShowModal] = useState(false);
+    const [largeImage, setLargeImage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!searchQuery) {
+            return;
+        }
+        fetchImages();
+    }, [searchQuery]);
+
+    const handleFormSubmit = searchQuery => {
+        setSearchQuery(searchQuery.trim());
+        setPage(1);
+        setImages([]);
     };
 
-    componentDidUpdate(prevProps, prevState) {
-        if (prevState.searchQuery !== this.state.searchQuery) {
-            this.fetchImages();
-        }
+    const fetchImages = () => {
+        setIsLoading(true);
 
-        if (prevState.page !== this.state.page) {
-            window.scrollTo({
-                top: document.documentElement.scrollHeight,
-                behavior: 'smooth',
-            });
-        }
-    }
-
-    handleFormSubmit = searchQuery => {
-        this.setState({
-            searchQuery: searchQuery.trim(),
-            page: 1,
-            images: [],
-            isLoading: true,
-            error: null,
-        });
-    };
-
-    fetchImages = () => {
-        const { page, searchQuery } = this.state;
-        const options = { searchQuery, page };
-
-        this.setState({
-            isLoading: true,
-        });
-
-        getImages(options)
+        getImages(searchQuery, page)
             .then(hits => {
-                this.setState(prevState => ({
-                    page: prevState.page + 1,
-                    images: [...prevState.images, ...hits],
-                    isLoading: false,
-                }));
+                setPage(page + 1);
+                setImages([...images, ...hits]);
+                setIsLoading(false);
 
                 if (hits.length > 0) {
                     toast.success('We have a picture for you!', {
@@ -85,11 +65,15 @@ class App extends React.Component {
                         progress: undefined,
                     });
                 }
+
+                window.scrollTo({
+                    top: document.documentElement.scrollHeight,
+                    behavior: 'smooth',
+                });
             })
             .catch(error => {
-                this.setState({
-                    error,
-                });
+                console.log(error);
+                setIsLoading(false);
 
                 toast.error('Error!', {
                     position: 'bottom-right',
@@ -103,50 +87,35 @@ class App extends React.Component {
             });
     };
 
-    openModal = largeImageURL => {
-        this.setState({
-            showModal: true,
-            largeImage: largeImageURL,
-        });
+    const openModal = largeImageURL => {
+        setShowModal(true);
+        setLargeImage(largeImageURL);
     };
 
-    toggleModal = () => {
-        this.setState({
-            largeImage: '',
-            showModal: false,
-        });
+    const toggleModal = () => {
+        setShowModal(false);
+        setLargeImage('');
     };
 
-    render() {
-        const { images, showModal, largeImage, isLoading } = this.state;
+    return (
+        <Container>
+            <Searchbar onSubmit={handleFormSubmit} />
 
-        return (
-            <Container>
-                <Searchbar onSubmit={this.handleFormSubmit} />
-                <>
-                        {isLoading ===true && <Spinner />}
-                        <>
-                            <ImageGallery
-                                images={images}
-                                openModal={this.openModal}
-                            />
+            {isLoading === true && <Spinner />}
+            <>
+                <ImageGallery images={images} openModal={openModal} />
 
-                            {images.length > 0 && (
-                                <Button onClick={this.fetchImages} />
-                            )}
-                        </>
+                {images.length > 0 && <Button onClick={fetchImages} />}
+            </>
 
-                </>
-
-                {showModal && (
-                    <Modal onClose={this.toggleModal}>
-                        <img src={largeImage} alt="" />
-                    </Modal>
-                )}
-                <ToastContainer />
-            </Container>
-        );
-    }
-}
+            {showModal && (
+                <Modal onClose={toggleModal}>
+                    <img src={largeImage} alt="" />
+                </Modal>
+            )}
+            <ToastContainer />
+        </Container>
+    );
+};
 
 export default App;
